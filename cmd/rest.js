@@ -1,40 +1,20 @@
-const { updateUser } = require('../data/user');
-const charmsList = require('../data/charmsList');
+const { User } = require("../data/user");
 
 module.exports = {
-  name: "استراحة",
-  run: async (api, event, { userData, args }) => {
-    const cooldown = 30 * 60 * 1000; // 30 دقيقة
-    const now = Date.now();
+    name: "فرمطة",
+    otherName: ["تصفير", "reset"],
+    run: async (api, event) => {
+        const { threadID, senderID } = event;
 
-    if (userData.lastRest && (now - userData.lastRest < cooldown)) {
-      const remain = Math.ceil((cooldown - (now - userData.lastRest)) / 60000);
-      return api.sendMessage(`⏳ جسدك لا يزال قوياً! استرح بعد ${remain} دقيقة.`, event.threadID);
+        try {
+            // حذف بيانات المستخدم نهائياً من MongoDB
+            await User.deleteOne({ id: senderID.toString() });
+
+            api.sendMessage("⚠️ تم تصفير حسابك بالكامل وإعادة بياناتك للوضع الافتراضي.", threadID);
+        } catch (error) {
+            console.error(error);
+            api.sendMessage("❌ فشل تنفيذ عملية الفرمطة.", threadID);
+        }
     }
-
-    if (args[0] === "تركيب") {
-      const charmID = parseInt(args[1]);
-      const charm = charmsList.find(c => c.id === charmID);
-      
-      if (!charm) return api.sendMessage("❌ حرز غير معروف.", event.threadID);
-
-      // تطبيق النسبة المئوية
-      let bonus = 0;
-      if (charm.type === "ATK") {
-          bonus = userData.character.maxATK * charm.value;
-          await updateUser(event.senderID, { "character.ATK": userData.character.maxATK + bonus });
-      }
-
-      await updateUser(event.senderID, { 
-        activeCharm: charm.name, 
-        lastRest: now,
-        "character.HP": userData.character.maxHP 
-      });
-
-      return api.sendMessage(`🧘 استرحت قليلاً.. تم استعادة صحتك وتركيب [ ${charm.name} ] بنجاح!\n⚡ القوة الإضافية: +${(charm.value * 100)}%`, event.threadID);
-    }
-
-    api.sendMessage("🛌 أنت الآن في حالة استراحة.. اكتب [.استراحة تركيب (رقم الحرز)] لتعزيز قوتك.", event.threadID);
-  }
 };
 

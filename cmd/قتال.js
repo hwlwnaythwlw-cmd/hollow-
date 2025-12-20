@@ -1,122 +1,48 @@
-const { updateUser, getUser } = require("../data/user");
-//const skills = require("../data/skills"); // سنفترض وجود ملف المهارات
+const { getUser, updateUser } = require("../data/user");
 
 module.exports = {
-  name: "قتال",
-  rank: 0,
-  run: async (api, event, { userData }) => {
-    // التحقق من حالة اللاعب
-    if (userData.character.HP <= 20) {
-        return api.sendMessage("🚑 صحتك منخفضة جداً! استخدم أمر الاستراحة أو انتظر التعافي التلقائي.", event.threadID);
-    }
+    name: "قتال",
+    otherName: ["h"],
+    run: async (api, event, { args }) => {
+        const { threadID, senderID, messageID } = event;
+        
+        // جلب بيانات اللاعب
+        let user = await getUser(senderID.toString());
 
-    // إعداد الوحش مع نظام الكسوف
-    let monster = {
-      name: global.isEclipse ? "👹 غول الكسوف الملعون" : "🐗 خنزير الغابة الهائج",
-      hp: global.isEclipse ? 250 : 100 + (userData.character.level * 15),
-      atk: global.isEclipse ? 35 : 15 + (userData.character.level * 2),
-      isBoss: global.isEclipse
-    };
+        // قائمة وحوش عشوائية
+        const monsters = [
+            { name: "تنين صغير", hp: 100, reward: 200, xp: 50 },
+            { name: "غول بري", hp: 80, reward: 150, xp: 30 },
+            { name: "ذئب الظلام", hp: 50, reward: 80, xp: 20 }
+        ];
 
-    let msg = `⚔️ | **مواجهة قتالية**\n` +
-              `──────────────────\n` +
-              `👤 البطل: ${userData.character.name || "محارب"}\n` +
-              `❤️ الصحة: ${userData.character.HP}\n` +
-              `👹 الخصم: ${monster.name}\n` +
-              `❤️ صحة الوحش: ${monster.hp}\n` +
-              `──────────────────\n` +
-              `${global.isEclipse ? "🌑 【 تحذير: الكسوف نشط - الوحش مرعب! 】\n" : ""}` +
-              `اضغط على التفاعلات للقتال:\n` +
-              `⚔️ هجوم | ✨ مهارة | 🛡️ دفاع | 🏃 هروب`;
+        const monster = monsters[Math.floor(Math.random() * monsters.length)];
+        
+        // نظام قتال مبسط (احتمال فوز 70%)
+        const win = Math.random() > 0.3;
 
-    api.sendMessage(msg, event.threadID, (err, info) => {
-      global.client.handler.reaction.push({
-        name: "قتال",
-        messageID: info.messageID,
-        author: event.senderID,
-        monsterHP: monster.hp,
-        playerHP: userData.character.HP,
-        monster: monster
-      });
-    }, event.messageID);
-  },
+        if (win) {
+            user.money += monster.reward;
+            user.character.xp += monster.xp;
+            
+            // التحقق من ارتقاء المستوى (Level Up)
+            if (user.character.xp >= user.character.level * 100) {
+                user.character.level += 1;
+                user.character.xp = 0;
+                api.sendMessage(`🆙 تهانينا! ارتقيت للمستوى ${user.character.level}`, threadID);
+            }
 
-  onReaction: async ({ api, event, Reaction, userData }) => {
-    if (event.userID !== Reaction.author) return;
+            await updateUser(senderID.toString(), user);
 
-    let { monsterHP, playerHP, monster, messageID } = Reaction;
-    let log = "";
-    let pDmg = userData.character.ATK + Math.floor(Math.random() * 10);
-    let mDmg = Math.max(5, monster.atk - (userData.character.DEF / 2));
+            const winMsg = `⚔️ | لقد واجهت [ ${monster.name} ] وهزمته!\n💰 الجائزة: ${monster.reward} ذهب\n💠 الخبرة: +${monster.xp}`;
+            return api.sendMessage(winMsg, threadID, messageID);
+        } else {
+            const lostMoney = 50;
+            user.money = Math.max(0, user.money - lostMoney);
+            await updateUser(senderID.toString(), user);
 
-    // تنفيذ الحركة
-    switch (event.reaction) {
-      case "⚔️":
-        monsterHP -= pDmg;
-        log = `💥 ضربة سيف قوية سببت ${pDmg} ضرر!`;
-        break;
-      case "✨":
-        if (userData.qi < 20) {
-            api.unsendMessage(event.messageID);
-            return api.sendMessage("⚠️ طاقة الـ Qi غير كافية!", event.threadID);
+            return api.sendMessage(`💀 | لقد هزمتك الـ [ ${monster.name} ] وفقدت ${lostMoney} قطعة ذهبية!`, threadID, messageID);
         }
-        userData.qi -= 20;
-        pDmg *= 2.5;
-        monsterHP -= pDmg;
-        log = `🔥 مهارة سرية! انفجار طاقة يسبب ${Math.floor(pDmg)} ضرر!`;
-        break;
-      case "🛡️":
-        mDmg = Math.floor(mDmg / 4);
-        log = `🛡️ وضعت دفاعاً كاملاً.. الوحش لم يخدشك تقريباً!`;
-        break;
-      case "🏃":
-        api.unsendMessage(messageID);
-        return api.sendMessage("🏃 انسحبت من المعركة.. الجبناء يعيشون طويلاً!", event.threadID);
     }
-
-    // هجوم الوحش
-    if (monsterHP > 0) {
-        playerHP -= Math.floor(mDmg);
-        log += `\n👹 رد ${monster.name} بضربة سببت ${Math.floor(mDmg)} ضرر!`;
-    }
-
-    // تفقد النتيجة
-    if (monsterHP <= 0) {
-        let gold = global.isEclipse ? 3000 : 500;
-        let exp = global.isEclipse ? 100 : 20;
-        await updateUser(Reaction.author, { 
-            money: userData.money + gold, 
-            exp: userData.exp + exp, 
-            "character.HP": playerHP,
-            qi: userData.qi,
-            lastAttackTime: new Date()
-        });
-        api.unsendMessage(messageID);
-        return api.sendMessage(`🏆 **نصر مؤزر!**\n💰 الذهب: +${gold}\n🌟 الخبرة: +${exp}\n❤️ صحتك: ${playerHP}`, event.threadID);
-    }
-
-    if (playerHP <= 0) {
-        api.unsendMessage(messageID);
-        let lostCharmMsg = "";
-        if (userData.charms && userData.charms.length > 0) {
-            const lost = userData.charms.pop(); // خسارة آخر حرز
-            lostCharmMsg = `\n⚠️ سقط منك حرز [ ${lost.name} ] أثناء هربك!`;
-        }
-        await updateUser(Reaction.author, { charms: userData.charms, "character.HP": 20, lastAttackTime: new Date() });
-        return api.sendMessage(`💀 **لقد سحقت!**\nتم إنقاذك بواسطة حراس الغابة.${lostCharmMsg}`, event.threadID);
-    }
-
-    // تعديل الرسالة للجولة القادمة
-    const statusMsg = `${log}\n\n` +
-                      `👤 بطلنا: ${playerHP} HP | ✨ طاقة: ${userData.qi}\n` +
-                      `👹 الوحش: ${monsterHP} HP\n` +
-                      `──────────────────\n` +
-                      `⚔️ | ✨ | 🛡️ | 🏃`;
-    
-    api.editMessage(statusMsg, messageID, () => {
-        Reaction.monsterHP = monsterHP;
-        Reaction.playerHP = playerHP;
-    });
-  }
 };
 

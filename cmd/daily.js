@@ -1,14 +1,29 @@
-module.exports = {
-  name: "يومي",
-  run: async (api, event, { userData }) => {
-    const rewards = [
-        { n: "كيس ذهب صغير", m: 500, q: 5 },
-        { n: "جرعة طاقة زرقاء", m: 100, q: 50 },
-        { n: "كنز الملوك", m: 5000, q: 10 }
-    ];
-    const gift = rewards[Math.floor(Math.random() * rewards.length)];
-    await updateUser(event.senderID, { money: userData.money + gift.m, qi: userData.qi + gift.q });
-    api.sendMessage(`🎁 حصلت على [ ${gift.n} ]!\n💰 +${gift.m} ذهب | ✨ +${gift.q} Qi`, event.threadID);
-  }
-};
+const { getUser, updateUser } = require("../data/user");
 
+module.exports = {
+    name: "يومية",
+    otherName: ["daily"],
+    run: async (api, event) => {
+        const { threadID, senderID } = event;
+        let userData = await getUser(senderID.toString());
+
+        const now = Date.now();
+        const cooldown = 24 * 60 * 60 * 1000; // 24 ساعة
+        const lastDaily = userData.lastDaily || 0;
+
+        if (now - lastDaily < cooldown) {
+            const remaining = cooldown - (now - lastDaily);
+            const hours = Math.floor(remaining / (60 * 60 * 1000));
+            return api.sendMessage(`⏳ لقد استلمت جائزتك اليومية بالفعل! عد بعد ${hours} ساعة.`, threadID);
+        }
+
+        const reward = 500; // مبلغ الجائزة
+        userData.money += reward;
+        userData.lastDaily = now;
+
+        await updateUser(senderID.toString(), userData);
+
+        return api.sendMessage(`🎁 | مطالبات يومية:\n💰 لقد حصلت على ${reward} قطعة ذهبية!`, threadID);
+    }
+};
+	
