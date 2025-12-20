@@ -1,57 +1,42 @@
-const fs = require('fs');
-const path = require('path');
+const mongoose = require("mongoose");
 
-// مسار ملف حفظ البيانات
-const filePath = path.join(__dirname, 'users.json');
+// تعريف شكل بيانات اللاعب في القاعدة
+const userSchema = new mongoose.Schema({
+    id: { type: String, unique: true },
+    character: {
+        name: { type: String, default: "محارب مبتدئ" },
+        level: { type: Number, default: 1 },
+        xp: { type: Number, default: 0 }
+    },
+    money: { type: Number, default: 1000 },
+    activeTitle: { type: String, default: "لا يوجد" },
+    clan: { type: String, default: "بدون" }
+});
 
-// دالة لقراءة البيانات من الملف
-function readData() {
-    if (!fs.existsSync(filePath)) {
-        fs.writeFileSync(filePath, JSON.stringify({}, null, 2));
-        return {};
-    }
-    const data = fs.readFileSync(filePath, 'utf8');
-    return JSON.parse(data);
-}
+const User = mongoose.model("User", userSchema);
 
-// دالة لحفظ البيانات في الملف
-function saveData(data) {
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-}
-
+// دالة جلب المستخدم (سحابياً)
 async function getUser(senderID) {
-    let users = readData();
-
-    // إذا كان المستخدم غير موجود، قم بإنشائه ببيانات افتراضية
-    if (!users[senderID]) {
-        users[senderID] = {
-            id: senderID,
-            character: {
-                name: "محارب مبتدئ",
-                level: 1,
-                xp: 0
-            },
-            specialCharm: {
-                name: "لا يوجد",
-                power: 0
-            },
-            clan: "لا يوجد",
-            money: 1000
-        };
-        saveData(users);
+    try {
+        let user = await User.findOne({ id: senderID });
+        if (!user) {
+            user = await User.create({ id: senderID });
+        }
+        return user;
+    } catch (error) {
+        console.error("❌ خطأ في جلب البيانات:", error);
+        return null;
     }
-    return users[senderID];
 }
 
+// دالة تحديث بيانات المستخدم
 async function updateUser(senderID, newData) {
-    let users = readData();
-    if (users[senderID]) {
-        // دمج البيانات القديمة مع الجديدة
-        users[senderID] = { ...users[senderID], ...newData };
-        saveData(users);
+    try {
+        return await User.findOneAndUpdate({ id: senderID }, newData, { new: true });
+    } catch (error) {
+        console.error("❌ خطأ في تحديث البيانات:", error);
     }
-    return users[senderID];
 }
 
-module.exports = { getUser, updateUser };
+module.exports = { User, getUser, updateUser };
 
