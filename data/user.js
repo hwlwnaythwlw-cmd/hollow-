@@ -1,74 +1,57 @@
-const mongoose = require("mongoose");
+const fs = require('fs');
+const path = require('path');
 
-const userSchema = new mongoose.Schema({
-  id: { type: String, unique: true },
-  crystals: { type: Number, default: 0 },
-  money: { type: Number, default: 0 },
-  lastJobDay: { type: String },
-  exp: { type: Number, default: 0 },
-  rank: { type: String, default: "مبتدئ" },
-  qi: { type: Number, default: 10 }, 
-  clan: { type: String, default: null }, 
-  isClanLeader: { type: Boolean, default: false },
-  isClanDeputy: { type: Boolean, default: false },
-  
-  // --- إضافة نظام الألقاب ---
-  titles: { type: Array, default: ["المستكشف المبتدئ"] }, // قائمة الألقاب التي يملكها
-  activeTitle: { type: String, default: "مستكشف" }, // اللقب الذي يظهر للناس
-  
-  charms: [{
-    name: String,
-    notchCost: Number,
-    isBroken: { type: Boolean, default: false },
-    lastUse: { type: Date, default: Date.now }
-  }],
-  maxNotches: { type: Number, default: 2 }, 
-  equippedCharms: { type: Array, default: [] },
-  lastBenchUse: { type: Date, default: 0 }, 
-  lastAttackTime: { type: Date, default: Date.now }, // حقل ضروري لنظام التعافي
+// مسار ملف حفظ البيانات
+const filePath = path.join(__dirname, 'users.json');
 
-  character: {
-    name: { type: String },
-    class: { type: String }, 
-    level: { type: Number, default: 1 },
-    ATK: { type: Number, default: 10 },
-    DEF: { type: Number, default: 10 },
-    HP: { type: Number, default: 100 },
-    maxHP: { type: Number, default: 100 }, 
-    SPEED: { type: Number, default: 10 },
-    skills: { type: Array, default: [] },
-    img: { type: String },
-  }
-});
-
-// دالة التعافي التدريجي
-userSchema.methods.regenerateHP = function() {
-    const now = new Date();
-    // إذا مر أكثر من 3 دقائق (180000ms) على آخر قتال
-    if ((now - this.lastAttackTime) > 180000) {
-        if (this.character.HP < this.character.maxHP) {
-            this.character.HP = Math.min(this.character.maxHP, this.character.HP + 5);
-        }
+// دالة لقراءة البيانات من الملف
+function readData() {
+    if (!fs.existsSync(filePath)) {
+        fs.writeFileSync(filePath, JSON.stringify({}, null, 2));
+        return {};
     }
-};
+    const data = fs.readFileSync(filePath, 'utf8');
+    return JSON.parse(data);
+}
 
-const User = mongoose.model('User', userSchema);
+// دالة لحفظ البيانات في الملف
+function saveData(data) {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+}
 
-// دوال المساعدة (تأكد من وجودها)
-const getUser = async (id) => {
-    let user = await User.findOne({ id });
-    if (user) user.regenerateHP(); // تفعيل التعافي عند طلب البيانات
-    return user;
-};
+async function getUser(senderID) {
+    let users = readData();
 
-const updateUser = async (id, data) => {
-    return await User.findOneAndUpdate({ id }, data, { new: true });
-};
+    // إذا كان المستخدم غير موجود، قم بإنشائه ببيانات افتراضية
+    if (!users[senderID]) {
+        users[senderID] = {
+            id: senderID,
+            character: {
+                name: "محارب مبتدئ",
+                level: 1,
+                xp: 0
+            },
+            specialCharm: {
+                name: "لا يوجد",
+                power: 0
+            },
+            clan: "لا يوجد",
+            money: 1000
+        };
+        saveData(users);
+    }
+    return users[senderID];
+}
 
-const saveUser = async (userData) => {
-    const newUser = new User(userData);
-    return await newUser.save();
-};
+async function updateUser(senderID, newData) {
+    let users = readData();
+    if (users[senderID]) {
+        // دمج البيانات القديمة مع الجديدة
+        users[senderID] = { ...users[senderID], ...newData };
+        saveData(users);
+    }
+    return users[senderID];
+}
 
-module.exports = { User, getUser, updateUser, saveUser };
+module.exports = { getUser, updateUser };
 
