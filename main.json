@@ -1,0 +1,8 @@
+{
+  "prefix": "",
+  "botName": "国︱𝚁𝚞𝚍𝚢",
+  "adminIDs": ["100083602650172", "61550124399416"],
+  "developerID": "61550124399416",
+  "mongoURI": "mongodb+srv://ahmedaltwm555_db_user:3PlGe5MI4bSc3O60@cluster0.dt7xtra.mongodb.net/myDatabase?retryWrites=true&w=majority"
+}
+
