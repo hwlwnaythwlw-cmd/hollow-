@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-// تعريف شكل بيانات اللاعب في القاعدة
+// تعريف موديل المستخدم
 const userSchema = new mongoose.Schema({
     id: { type: String, unique: true },
     character: {
@@ -13,9 +13,9 @@ const userSchema = new mongoose.Schema({
     clan: { type: String, default: "بدون" }
 });
 
-const User = mongoose.model("User", userSchema);
+// منع إعادة تعريف الموديل إذا كان موجوداً مسبقاً
+const User = mongoose.models.User || mongoose.model("User", userSchema);
 
-// دالة جلب المستخدم (سحابياً)
 async function getUser(senderID) {
     try {
         let user = await User.findOne({ id: senderID });
@@ -24,12 +24,11 @@ async function getUser(senderID) {
         }
         return user;
     } catch (error) {
-        console.error("❌ خطأ في جلب البيانات:", error);
-        return null;
+        console.error("❌ خطأ في قاعدة البيانات:", error);
+        return { id: senderID, character: { name: "خطأ في البيانات", level: 0 }, money: 0 };
     }
 }
 
-// دالة تحديث بيانات المستخدم
 async function updateUser(senderID, newData) {
     try {
         return await User.findOneAndUpdate({ id: senderID }, newData, { new: true });

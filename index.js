@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const handleCommand = require("./core/handler");
 
 // إعداد الرابط التجريبي (MongoDB)
-const mongoURI = "mongodb+srv://testUser:testPass123@cluster0.free.mongodb.net/myGameDB?retryWrites=true&w=majority";
+const mongoURI = "mongodb+srv://ahmedaltwm555_db_user:PaslZZmgX7VXRzlw@ber1.jn7kisv.mongodb.net/?appName=ber1";
 
 // الاتصال بقاعدة البيانات
 mongoose.connect(mongoURI)
