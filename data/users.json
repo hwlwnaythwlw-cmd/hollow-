@@ -1,16 +1,31 @@
-{
-  "61550124399416": {
-    "id": "61550124399416",
-    "character": {
-      "name": "محارب مبتدئ",
-      "level": 1,
-      "xp": 0
+const mongoose = require("mongoose");
+
+const userSchema = new mongoose.Schema({
+    id: { type: String, required: true, unique: true },
+    registered: { type: Boolean, default: false },
+    character: {
+        name: { type: String, default: "غير مسجل" },
+        level: { type: Number, default: 1 },
+        xp: { type: Number, default: 0 }
     },
-    "specialCharm": {
-      "name": "لا يوجد",
-      "power": 0
+    money: { type: Number, default: 0 },
+    lastDaily: { type: Number, default: 0 }
+});
+
+// تصدير الموديل والدوال بشكل مباشر
+const User = mongoose.models.User || mongoose.model("User", userSchema);
+
+module.exports = {
+    User,
+    getUser: async (senderID) => {
+        let user = await User.findOne({ id: String(senderID) });
+        if (!user) {
+            user = await User.create({ id: String(senderID) });
+        }
+        return user;
     },
-    "clan": "لا يوجد",
-    "money": 1000
-  }
-}
+    updateUser: async (senderID, newData) => {
+        return await User.findOneAndUpdate({ id: String(senderID) }, newData, { new: true });
+    }
+};
+

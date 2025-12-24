@@ -1,32 +1,20 @@
-const { getUser, saveUser } = require('../data/user');
+const { updateUser } = require("../data/user");
 
 module.exports = {
-  name: 'تسجيل',
-  run: async (api, event, { args }) => {
-    const senderId = event.senderID;
-    const name = args.join(' ');
+    name: "تسجيل",
+    run: async (api, event, { args, userData }) => {
+        if (userData.registered) return api.sendMessage("✅ أنت مسجل بالفعل!", event.threadID);
 
-    if (!name) return api.sendMessage('❗ اكتب اسمك بعد الأمر. مثال: .تسجيل لوفي', event.threadID);
+        const name = args.join(" ");
+        if (!name) return api.sendMessage("⚠️ يرجى كتابة اسم لشخصيتك!\nمثال: .تسجيل غوكو", event.threadID);
 
-    const user = await getUser(senderId);
-    if (user) return api.sendMessage(`⚠️ أنت مسجل بالفعل باسم [ ${user.character.name} ]`, event.threadID);
+        userData.character.name = name;
+        userData.registered = true; // علامة التسجيل
+        userData.money = 1000;
 
-    const newUser = {
-      id: senderId,
-      money: 500,
-      qi: 50,
-      activeTitle: "مستكشف",
-      character: {
-        name: name,
-        level: 1,
-        HP: 100, maxHP: 100,
-        ATK: 100, DEF: 100,
-        img: "https://i.imgur.com/8P6Z2Xm.png"
-      }
-    };
+        await updateUser(event.senderID.toString(), userData);
 
-    await saveUser(newUser);
-    api.sendMessage(`✅ تم تسجيلك بنجاح يا [ ${name} ]!`, event.threadID);
-  }
+        api.sendMessage(`✨ تمت عملية التسجيل بنجاح!\nمرحباً بك يا [ ${name} ] في عالم المغامرة.`, event.threadID);
+    }
 };
 
