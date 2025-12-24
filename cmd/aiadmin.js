@@ -3,49 +3,59 @@ const fs = require('fs');
 const path = require('path');
 const { User, updateUser } = require('../data/user');
 
-// ضع مفتاح جوجل الخاص بك هنا
-const genAI = new GoogleGenerativeAI("AIzaSyC5WIdscOUIvJXpHek3OaofXzt52SqLpqE");
+// استبدل النص أدناه بمفتاح Google API الخاص بك
+const genAI = new GoogleGenerativeAI("YOUR_GOOGLE_API_KEY");
 
 module.exports = {
     name: "مساعد",
-    otherName: ["aiadmin"],
+    otherName: ["aiadmin", "ai"],
     run: async (api, event, { args, userRank }) => {
-        if (userRank < 2) return api.sendMessage("🚫 للمطور فقط.", event.threadID);
+        // التحقق من رتبة المطور (رتبة 2 تعني أدمن)
+        if (userRank < 2) return api.sendMessage("🚫 هذا الأمر مخصص للمطور الرئيسي فقط.", event.threadID);
 
         const prompt = args.join(" ");
-        if (!prompt) return api.sendMessage("⚠️ اشرح لي ماذا تريد أن أفعل؟\nمثال: .مساعد احذف المستخدم رقم 1234 وحدث ملف قتال ليصبح الربح 500", event.threadID);
+        if (!prompt) return api.sendMessage("⚠️ كيف يمكنني مساعدتك برمجياً؟\nمثال: .مساعد احذف المستخدم ذو الآيدي 123456", event.threadID);
 
         try {
+            // استخدام موديل gemini-1.5-flash أو gemini-pro حسب المتوفر في منطقتك
             const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-            // إعطاء الذكاء الاصطناعي سياق عن الأدوات المتاحة له
             const systemContext = `
-            أنت مساعد مطور بوت فيسبوك. متاح لك الوصول للكائنات التالية:
-            1. User (موديل المونجو): للحذف والبحث.
-            2. fs: لتعديل الملفات.
-            3. api: لإرسال الرسائل.
-            المسار الحالي هو: ${process.cwd()}
-            يجب أن تكون إجابتك عبارة عن كود JavaScript فقط لينفذه البوت عبر eval. 
-            لا تكتب كلاماً إضافياً، فقط الكود بين علامتي \`\`\`.
+            أنت "عقل البوت". متاح لك التحكم الكامل.
+            البيئة الحالية:
+            - قاعدة البيانات (User): يمكنك استخدام User.deleteOne, User.findOne, User.updateMany.
+            - الملفات (fs): يمكنك قراءة وكتابة الملفات في مجلد البوت.
+            - التواصل (api): يمكنك إرسال رسائل عبر api.sendMessage.
+            - المسار الحالي: ${process.cwd()}
+
+            المطلوب منك:
+            تقديم كود JavaScript فقط لينفذه البوت. 
+            لا تكتب أي نص بشري أو مقدمات. فقط الكود البرمجي داخل علامات الكود.
+            إذا طلب المستخدم حذف شخص، استخدم String(id) للبحث في المونجو.
             `;
 
             const result = await model.generateContent([systemContext, prompt]);
             const response = await result.response;
             let code = response.text().replace(/```javascript|```js|```/g, "").trim();
 
-            // تنفيذ الكود الذي ولده الذكاء الاصطناعي
-            api.sendMessage("⚙️ جاري تنفيذ تعليماتك البرمجية...", event.threadID);
-            
-            // بيئة التنفيذ (Context)
-            const executeCode = async () => {
-                return await eval(`(async () => { ${code} })()`);
+            // إرسال إشعار قبل التنفيذ
+            api.sendMessage("⚙️ جاري معالجة طلبك وتنفيذ الكود...", event.threadID);
+
+            // وظيفة التنفيذ الفوري
+            const executeCommand = async (codeToRun) => {
+                const context = { api, event, User, updateUser, fs, path };
+                // إنشاء دالة من النص المنفذ
+                const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+                const fn = new AsyncFunction('api', 'event', 'User', 'updateUser', 'fs', 'path', codeToRun);
+                return await fn(api, event, User, updateUser, fs, path);
             };
 
-            await executeCode();
-            api.sendMessage("✅ تم الانتهاء من تنفيذ المهمة بنجاح.", event.threadID);
+            await executeCommand(code);
+            api.sendMessage("✅ تم تنفيذ المهمة بنجاح كما طلبت.", event.threadID);
 
         } catch (error) {
-            api.sendMessage(`❌ فشل المساعد في التنفيذ:\n${error.message}`, event.threadID);
+            console.error(error);
+            api.sendMessage(`❌ فشل في التنفيذ:\nالسبب: ${error.message}\nتأكد من صلاحية مفتاح API أو اسم الموديل.`, event.threadID);
         }
     }
 };

@@ -15,11 +15,15 @@ global.client = {
     handler: { reply: [] }
 };
 
-// تحميل الأوامر
+// تحميل الأوامر من مجلد cmd
 const commandFiles = fs.readdirSync('./cmd').filter(file => file.endsWith('.js'));
 for (const file of commandFiles) {
-    const command = require(`./cmd/${file}`);
-    global.client.commands.set(command.name, command);
+    try {
+        const command = require(`./cmd/${file}`);
+        global.client.commands.set(command.name, command);
+    } catch (e) {
+        console.error(`❌ فشل تحميل الأمر ${file}:`, e);
+    }
 }
 
 if (!fs.existsSync('./appstate.json')) {
@@ -49,20 +53,22 @@ login({ appState }, (err, api) => {
             const adminID = "61550124399416";
             const userRank = (senderID === adminID) ? 2 : 0;
 
-            // جلب البيانات
+            // جلب البيانات (ستنشئ حساباً تلقائياً إذا لم يوجد)
             let userData = await getUser(senderID);
 
-            // منع غير المسجلين
-            if (!userData.registered && command.name !== "تسجيل" && command.name !== "أوامر") {
-                return api.sendMessage("⚠️ حسابك غير مفعل! يجب التسجيل أولاً.\nاكتب: .تسجيل [اسمك]", event.threadID);
+            // --- [تعديل هام] تم إزالة شرط "يجب التسجيل أولاً" لفتح البوت للجميع ---
+            // إذا كنت تريد تحديث حالة التسجيل تلقائياً عند أول استخدام:
+            if (!userData.registered) {
+                userData.registered = true;
+                await updateUser(senderID, userData);
             }
 
-            // تنفيذ الأمر
+            // تنفيذ الأمر مباشرة
             await command.run(api, event, { args, userData, userRank, updateUser });
 
         } catch (error) {
-            console.error(error);
-            api.sendMessage(`🚨 خطأ: ${error.message}`, event.threadID);
+            console.error(`🚨 خطأ في التنفيذ:`, error);
+            api.sendMessage(`🚨 حدث خطأ أثناء تنفيذ الأمر: ${error.message}`, event.threadID);
         }
 
         // نظام الردود
