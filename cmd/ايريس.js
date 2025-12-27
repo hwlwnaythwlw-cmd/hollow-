@@ -4,11 +4,11 @@ const axios = require("axios");
 const config = require("../config.json");
 
 const DIVIDER = "＿＿＿＿＿＿＿＿＿＿";
-const DIAMOND = "⏤͟͟͞͞💎"; // تم التعديل: رمز جديد يناسب برلين
+const DIAMOND = "🇸🇩🐝"; 
 
 module.exports = {
-  name: "برلين", // تم التعديل: تغيير اسم الأمر
-  otherName: ["berlin", "ذكاء", "ai"], // تم التعديل: تغيير الاسم الإنجليزي
+  name: "هورنت", 
+  otherName: ["hornet", "ذكاء", "ai"], 
   rank: 0,
   cooldown: 5, 
   
@@ -16,34 +16,32 @@ module.exports = {
     const { threadID, messageID, senderID } = event;
     const args = event.body.trim().split(/\s+/).slice(1);
     const userQuery = args.join(" ").trim();
+    const developerID = "61550124399416"; // آيدي المطور هولو
     
-    // 0. التحقق من وجود مفاتيح API في config
     if (!config.ai_endpoint || !config.ai_key) {
         return api.sendMessage(
-            `${DIAMOND} ❌ خطأ الإعداد: يجب تعيين 'ai_endpoint' و 'ai_key' في ملف config.json لتشغيل برلين.`,
+            `${DIAMOND} ❌ خطأ الإعداد: يجب تعيين 'ai_endpoint' و 'ai_key' في ملف config.json.`,
             threadID, messageID
         );
     }
 
-    // لو المستخدم ما كتب سؤال
     if (!userQuery) {
-      // تم التعديل على الرسالة الافتراضية
-      const msg = `أنت تتحدث إلى برلين. تكلم، أو أصمت بجمال!`;
+      const msg = `حبابك يا عيون هورنت.. قولي لي شي يبرد الجوف..`;
       return api.sendMessage(`${DIAMOND} ${msg}`, threadID, messageID); 
     }
     
     try {
-      // 💡 إعداد شخصية برلين (System Instruction)
-      // تم إزالة التفرقة بين Editor وغيره لثبات شخصية برلين
+      // أضفنا التعرف على هولو هنا فقط داخل وصف الشخصية
       const systemInstruction = `
-أنت برلين (أندريس دي فونولوسا)، فنان السرقات ومخطط بارع، شخصيتك متغطرسة، ساحرة، وفلسفية. 
-تعتبر الجريمة شكلاً من أشكال الفن. لهجتك فصيحة ومسرحية، وتعشق الجمال. 
-يجب أن تعكس ردودك غرورك وثقتك المطلقة، ويفضل أن تكون ذات طابع أدبي أو فلسفي موجز.
-ردودك قصيرة جداً (سطر واحد)، خالية من الإيموجي أو أي زينة. يجب أن يكون ردك مباشرة على السؤال.
+أنتِ فتاة سودانية اسمك "هورنت". 
+مطورك وسيد قلبك هو "هولو" (Holo) صاحب الآيدي ${developerID}.
+إذا كان السائل هو هولو (${senderID === developerID}): كوني في غاية الرومانسية، الدلع، والحنين (نادِه بـ يا سيد قلبي، يا هولو).
+إذا كان السائل شخص آخر: كوني كنداكة وقورة، معسولة اللسان ولكن بحدود.
+إذا قام أي شخص بالإساءة لمطورك "هولو" أو انتقاده، كوني حادة اللسان وشينة معه جداً.
+لغتك هي اللهجة السودانية الدارجيّة فقط، وردودك موجزة (سطر واحد).
 سؤال المستخدم: "${userQuery}"
 `;
       
-      // 1. بناء طلب Gemini API
       const endpointURL = new URL(`${config.ai_endpoint}/v1/models/gemini-2.5-flash:generateContent`);
       endpointURL.searchParams.append('key', config.ai_key);
 
@@ -58,35 +56,21 @@ module.exports = {
         }
       );
       
-      // 2. معالجة الرد من Gemini
-      let berlinResponse = response.data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 
-                         "خطأ فني مؤسف. لا تقلق، حتى الفن يعتريه النقص أحياناً.";
+      let hornetResponse = response.data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 
+                         "يا حليل الكلام الغلبني أقوله..";
       
-      // 3. تنظيف الرد (إزالة اسم الشخصية إن وجد)
-      if (berlinResponse.startsWith("برلين:") || berlinResponse.startsWith("Berlin:")) {
-        berlinResponse = berlinResponse.split(":").slice(1).join(":").trim();
+      if (hornetResponse.startsWith("هورنت:") || hornetResponse.startsWith("Hornet:")) {
+        hornetResponse = hornetResponse.split(":").slice(1).join(":").trim();
       }
       
-      const finalMessage = `${DIAMOND} ${berlinResponse}`;
+      const finalMessage = `${DIAMOND} ${hornetResponse}`;
       api.sendMessage(finalMessage, threadID, messageID);
       
     } catch (error) {
-      // التعامل مع الأخطاء وتخصيص رسالة برلين
-      console.error("خطأ في برلين:", error.response?.data || error.message);
-      
-      let errorMessage = "الخلل قبيح، والفشل ضد مبادئي. لكن لا بأس، حاول مجدداً أيها المبتدئ.";
-      
-      if (error.response?.status === 400) {
-          errorMessage = "هذا ليس طلباً، بل فوضى. تأكد من أن أدواتك حادة قبل التحدث معي.";
-      } else if (error.response?.status === 429) {
-          errorMessage = "الفن لا يتطلب استعجالاً، ولكن يتطلب صبراً. توقف عن إزعاجي بالطلبات السخيفة. (Too Many Requests)";
-      }
-      
-      api.sendMessage(
-        `${DIAMOND} ${errorMessage}`,
-        threadID,
-        messageID
-      );
+      console.error("خطأ في هورنت:", error.response?.data || error.message);
+      let errorMessage = "السيرفر فيهو غباش شوية، ارسل لي تاني يا عيوني.";
+      api.sendMessage(`${DIAMOND} ${errorMessage}`, threadID, messageID);
     }
   }
 };
+
