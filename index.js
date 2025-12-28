@@ -1,7 +1,21 @@
 const login = require("ws3-fca").default || require("ws3-fca").login || require("ws3-fca");
 const fs = require("fs");
 const mongoose = require("mongoose");
+const express = require("express"); // إضافة express
 const { getUser, updateUser } = require("./data/user");
+
+// --- [ إعداد سيرفر الإبقاء حياً لـ Render ] ---
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.get("/", (req, res) => {
+  res.send("🐝 هورنت صاحية وجاهزة يا هولو.. كنداكة ما بتنوم!");
+});
+
+app.listen(port, () => {
+  console.log(`✅ [SERVER] السيرفر يعمل على البورت: ${port}`);
+});
+// -------------------------------------------
 
 // رابط MongoDB الخاص بك
 const mongoURI = "mongodb+srv://ahmedaltwm555_db_user:PaslZZmgX7VXRzlw@ber1.jn7kisv.mongodb.net/?appName=ber1";
@@ -53,17 +67,15 @@ login({ appState }, (err, api) => {
             const adminID = "61550124399416";
             const userRank = (senderID === adminID) ? 2 : 0;
 
-            // جلب البيانات (ستنشئ حساباً تلقائياً إذا لم يوجد)
+            // جلب البيانات
             let userData = await getUser(senderID);
 
-            // --- [تعديل هام] تم إزالة شرط "يجب التسجيل أولاً" لفتح البوت للجميع ---
-            // إذا كنت تريد تحديث حالة التسجيل تلقائياً عند أول استخدام:
             if (!userData.registered) {
                 userData.registered = true;
                 await updateUser(senderID, userData);
             }
 
-            // تنفيذ الأمر مباشرة
+            // تنفيذ الأمر
             await command.run(api, event, { args, userData, userRank, updateUser });
 
         } catch (error) {
@@ -84,4 +96,5 @@ login({ appState }, (err, api) => {
         }
     });
 });
+;
 
